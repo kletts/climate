@@ -1,0 +1,139 @@
+---
+title: "Solar Panel Insolation Loss"
+subtitle: "Assessment for solar panels at 8/259 Sydney Rd Brunswick in response to shading by proposed development at 10 Dawson St Brunswick"
+author: "Christian Klettner"
+date: today
+date_format: MMMM YYYY
+format: 
+  pdf: 
+    pdf-engine: xelatex
+    fontfamily: libertinus
+    geometry: 
+     - top=20mm
+     - right=10mm
+     - left=10mm
+     - bottom=20mm    
+execute: 
+  echo: false
+  warning: false
+  message: false
+---
+
+## Assumptions
+
+|Assumptions | |
+|:----|:------|
+| Address | 8/259 Sydney Rd Brunswick | 
+| Location | Lat: -37.771308, Long: 144.960665 |
+| Panel height | 22 meters | 
+| Panel tilt | 15 deg north |
+| Panel azimuth | 15 deg west |
+| Development height | 45 meters |
+| Development offset | 10 meters west, 30 meters north | 
+
+
+
+```{r}
+library(oce)
+library(tidyverse)
+library(lubridate)
+library(gt)
+
+direct_insolation.f <- function(altitude){ 
+  # https://en.wikipedia.org/wiki/Direct_insolation
+  theta <- (90 - pmax(altitude,0))/180*pi
+  am <- 1/cos(theta)
+  1.353*0.7^(am^0.678) }
+
+direct_tilted_insolation <- function(altitude, azimuth, panel_tilt, panel_azimuth) { 
+  gamma_z <- azimuth/180*pi
+  theta_z <- (90 - pmax(altitude,0))/180*pi
+  beta <-  panel_tilt/180*pi 
+  gamma <- panel_azimuth/180*pi 
+  theta <- cos(theta_z)*cos(beta) + sin(theta_z)*sin(beta)*cos(gamma_z- gamma)
+  am <- 1/theta
+  1.353*0.7^(am^0.678) }
+
+```
+
+
+```{r}
+lat <- -37.771308
+long <- 144.960665
+t  <- as.POSIXct(Sys.time(), tz="UTC")
+as_datetime(Sys.time(), tz = "UTC")
+
+x <- "2023-01-01 6:00:00"
+x <- as_datetime(x, tz = "Australia/Melbourne")
+#x <- as_datetime(x, tz = "UTC")
+
+y <- "2023-12-31 20:00:00"
+y <- as_datetime(y, tz = "Australia/Melbourne")
+#y <- as_datetime(y, tz = "UTC")
+
+t <- seq(x, y, by="1 hour")
+```
+
+```{r}
+
+angle.altitude <- atan(22.5/10)*180/pi
+angle.azimuth <- atan(-10/30)*180/pi  
+
+panel.tilt <- 15
+panel.azimuth <- 15 #west
+```
+
+```{r}
+data <- sunAngle(t, long, lat,  useRefraction=TRUE) %>% bind_rows() 
+data <- data %>% 
+  filter(altitude>0) %>% 
+  mutate(
+    time = as_datetime(time, tz="Australia/Melbourne"), 
+    month=factor(month(time), labels = unique(format(time, "%b"))),
+    hour = hour(time), 
+    azimuth = ifelse(azimuth>180, azimuth-360, azimuth),  
+    direct_insolation = direct_tilted_insolation(altitude, azimuth, panel.tilt, panel.azimuth),  
+    shaded = ifelse(altitude < angle.altitude & azimuth < angle.azimuth, TRUE, FALSE), 
+    direct_insolation = ifelse(is.nan(direct_insolation), 0, direct_insolation)) 
+```
+
+
+
+
+```{r}
+data %>% 
+  group_by(Month=month) %>% 
+  summarise(`Current Insolation`=sum(direct_insolation), 
+            `Lost Insolation` = sum(direct_insolation*shaded)) %>% 
+  gt(rowname_col = "Month") %>% 
+  fmt_number(columns=everything(), 
+             decimals = 1) %>% 
+  grand_summary_rows(columns=everything(), 
+                     fns=list(Total ~ sum(.)), 
+                      fmt = ~ fmt_number(., decimals = 1))
+```
+
+```{r}
+#| fig-cap: "Tilt Adjusted Direct Solar Insolation"
+#| fig-height: 7
+
+data %>% 
+  group_by(hour, month) %>% 
+  summarise(Insolation=mean(direct_insolation), 
+            Shaded = mean(!shaded)<0.5) %>% 
+  ggplot(aes(x=hour, y=month, fill=Insolation, alpha=Shaded)) + 
+  scale_y_discrete(limits=rev) + 
+  scale_x_continuous(breaks=c(8, 12, 16, 20)) + 
+  scale_alpha_manual(values=c(0.8, 0.2)) + 
+  geom_tile(height=0.8) + 
+  scale_fill_viridis_c(option="A") + 
+  theme_bw() + 
+  theme(panel.grid=element_blank()) + 
+  labs(subtitle="",
+       fill=expression(kWh/m^2), 
+       alpha="Shaded\nPanel", 
+       x="Hour of the day", 
+       y="Month of the year")
+```
+
+
