@@ -31,7 +31,7 @@ jobs:
             
       - name: run-script
         run: |
-          Rscript soi.R
+          Rscript nino.R
           Rscript sst.R
           Rscript ice.R
           Rscript ocean.R
