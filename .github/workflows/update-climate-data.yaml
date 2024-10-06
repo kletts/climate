@@ -34,9 +34,7 @@ jobs:
           Rscript nino.R
           Rscript sst.R
           Rscript ice.R
-          Rscript ocean.R
           Rscript tropo.R
-          Rscript seal.R
         
       - name: commit files
         run: |
