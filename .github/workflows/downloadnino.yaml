@@ -11,8 +11,7 @@ jobs:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}    
     steps:
       - uses: actions/checkout@v3
-      - name: check local directory has .git
-        run: ls -a
+      - run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
       - name: run script
         run: |
           Rscript iod.R
