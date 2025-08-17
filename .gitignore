@@ -5,5 +5,9 @@
 *.nc
 temp.data
 *.epw
+*.zip
 data/TMY_Dataset_60min
 data/hourly_88101_2020.csv
+.venv
+*.pdf
+au-daily-anom
