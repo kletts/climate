@@ -13,10 +13,8 @@ files <- c("nino_1"="Nino1",
            "iod"="IOD", 
            "soi"="SOI")
 
-fullnames <- paste("./temp/", idx, ".csv", sep="")
-
 data <- imap(files, \(x, idx) 
-    read_csv(fullnames)  |> 
+    read_csv(paste("./temp/", idx, ".csv", sep=""))  |> 
     mutate(date = as.Date(as.character(end_date), "%Y%m%d"), 
            series = x) |>
       rename(anon=.data[[idx]]) |> 
@@ -26,5 +24,4 @@ data$soi <- data$soi |> filter(date %in% data$nino_1$date)
 
 write_csv(bind_rows(data), "allnino.csv")
 
-unlink(fullnames) 
-unlink(c("temp.zip", "./temp"))
+unlink(c("temp.zip", "./temp"), recursive=TRUE)
