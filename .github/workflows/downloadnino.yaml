@@ -1,7 +1,7 @@
 on:
   workflow_dispatch:
   
-name: update_results
+name: update nino
 
 jobs:
   run-r-script:
